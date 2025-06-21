@@ -1,20 +1,28 @@
-package ru.job4j.github.analysis.model;
+package ru.job4j.github.analysis.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "commits")
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@EqualsAndHashCode(of = {"id"})
+@Table (name = "commits")
 public class Commit {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Integer id;
+
     private String message;
+
     private String author;
+
     private LocalDateTime date;
+
     @ManyToOne
     @JoinColumn(name = "repository_id")
     private Repository repository;

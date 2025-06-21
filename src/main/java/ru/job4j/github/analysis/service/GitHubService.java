@@ -1,8 +1,8 @@
 package ru.job4j.github.analysis.service;
 
 import org.springframework.stereotype.Service;
-import ru.job4j.github.analysis.model.Commit;
-import ru.job4j.github.analysis.model.Repository;
+import ru.job4j.github.analysis.entity.Commit;
+import ru.job4j.github.analysis.entity.Repository;
 
 import java.util.List;
 
