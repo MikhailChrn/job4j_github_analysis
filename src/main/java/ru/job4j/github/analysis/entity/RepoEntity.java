@@ -11,19 +11,22 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @EqualsAndHashCode(of = {"id"})
-@Table (name = "commits")
-public class Commit {
+@Table (name = "repos")
+public class RepoEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    private String message;
+    @Column(name = "html_url")
+    private String htmlUrl;
 
-    private String author;
+    @Column(name = "full_name")
+    private String fullName;
 
-    private LocalDateTime date;
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 
-    @ManyToOne
-    @JoinColumn(name = "repository_id")
-    private Repository repository;
+    @Column(name = "description")
+    private String description;
+
 }

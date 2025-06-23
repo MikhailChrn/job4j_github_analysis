@@ -3,8 +3,10 @@ package ru.job4j.github.analysis.controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.job4j.github.analysis.dto.RepositoryCommits;
-import ru.job4j.github.analysis.entity.Repository;
+
+import ru.job4j.github.analysis.dto.CommitDto;
+import ru.job4j.github.analysis.dto.FullRepoNameDto;
+import ru.job4j.github.analysis.dto.RepoDto;
 import ru.job4j.github.analysis.service.RepositoryService;
 
 import java.util.List;
@@ -16,19 +18,28 @@ public class GitHubController {
     @Autowired
     private RepositoryService repositoryService;
 
+    /**
+     * GET возвращает перечень локально сохранённых репозиториев
+     */
     @GetMapping("/repositories")
-    public List<Repository> getAllRepositories() {
-        return List.of();
+    public List<RepoDto> getAllRepositories() {
+        return repositoryService.findAllrepositories();
     }
 
-    @GetMapping("/commits/{name}")
-    public List<RepositoryCommits> getCommits(@PathVariable(value = "name") String name) {
-        return List.of();
+    /**
+     * GET возвращает перечень локально сохранённых коммитов из запрашиваемого репозитория
+     */
+    @GetMapping("/commits/{repoTitle}")
+    public List<CommitDto> getCommitsByRepoTitle(@PathVariable(value = "repoTitle") String repoTitle) {
+        return repositoryService.findAllCommitsByRepoTitle(repoTitle);
     }
 
+    /**
+     * POST добавляет репозиторий в БД для дальнейшего сбора данных о коммитах
+     */
     @PostMapping("/repository")
-    public ResponseEntity<Void> create(@RequestBody Repository repository) {
-        repositoryService.create(repository);
+    public ResponseEntity<Void> create(@RequestBody FullRepoNameDto fullRepoNameDto) {
+        repositoryService.create(fullRepoNameDto);
         return ResponseEntity.noContent().build();
     }
 }

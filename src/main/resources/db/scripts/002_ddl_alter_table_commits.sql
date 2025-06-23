@@ -1,7 +1,8 @@
 CREATE TABLE commits (
-    id            SERIAL PRIMARY KEY,
-    message       TEXT,
-    author        TEXT,
-    date          TIMESTAMP,
-    repository_id INT   NOT NULL   REFERENCES repositories(id)
+    id          SERIAL PRIMARY KEY,
+    html_url    TEXT,
+    message     TEXT,
+    author_name TEXT,
+    author_date TIMESTAMP,
+    repo_id     INT NOT NULL    REFERENCES  repos(id)
 );
