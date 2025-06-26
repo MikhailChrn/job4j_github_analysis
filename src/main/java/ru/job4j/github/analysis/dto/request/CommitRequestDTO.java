@@ -1,4 +1,4 @@
-package ru.job4j.github.analysis.dto;
+package ru.job4j.github.analysis.dto.request;
 
 import lombok.Builder;
 import lombok.Value;
@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
  */
 @Value
 @Builder
-public class CommitDto {
+public class CommitRequestDTO {
 
     String fullNameRepo;
 

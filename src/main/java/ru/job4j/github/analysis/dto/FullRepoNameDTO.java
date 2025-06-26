@@ -5,7 +5,7 @@ import lombok.Value;
 
 @Value
 @AllArgsConstructor
-public class FullRepoNameDto {
+public class FullRepoNameDTO {
 
     private String fullName;
 

@@ -1,4 +1,4 @@
-package ru.job4j.github.analysis.dto;
+package ru.job4j.github.analysis.dto.request;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
  */
 @Value
 @Builder
-public class RepoDto {
+public class RepoRequestDTO {
 
     @URL
     String htmlUrl;
