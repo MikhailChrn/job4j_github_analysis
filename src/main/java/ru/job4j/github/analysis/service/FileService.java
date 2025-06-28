@@ -9,15 +9,15 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Этот сервис выполняет с текстовыми файлами на диске.
- * (используется для подгрузки тестовых JSON кейсов)
+ * Этот сервис работает с текстовыми файлами на диске.
+ * (в проекте используется для подгрузки тестовых JSON кейсов)
  */
 
 @Service
 public class FileService {
 
     /**
-     * Данный метод выгружает содержимое текстовых файлов в String
+     * Данный метод загружает содержимое текстовых файлов в String
      */
     public String readFileContent(String filePath) throws IOException {
         ClassPathResource resource = new ClassPathResource(filePath);

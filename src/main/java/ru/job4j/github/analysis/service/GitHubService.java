@@ -8,7 +8,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
-import ru.job4j.github.analysis.dto.FullRepoNameDTO;
 import ru.job4j.github.analysis.dto.response.CommitResponseDTO;
 import ru.job4j.github.analysis.dto.response.RepoResponseDTO;
 import ru.job4j.github.analysis.entity.CommitEntity;
@@ -24,9 +23,10 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * Этот сервис выполняет подгрузку данных с публичного API
+ * Этот сервис выполняет выгрузку данных с публичного API GitHub.com
+ * Формат названия репозитория : 'author/repository'
+ * Пример названия репозитория : 'MikhailChrn/job4j_social_media_api'
  */
-
 @Slf4j
 @Service
 public class GitHubService {
@@ -46,16 +46,17 @@ public class GitHubService {
     /**
      * Метод выполняет выгрузку данных о репозитории по его названию
      */
-    public Optional<RepoEntity> fetchRepo(FullRepoNameDTO fullRepoNameDto) {
+    public Optional<RepoEntity> fetchRepo(String fullRepoName) {
 
-        String url = "https://api.github.com/repos/" + fullRepoNameDto.getFullName();
+        String urlRequest = String.format("https://api.github.com/repos/%s", fullRepoName);
 
         try {
-            ResponseEntity<Optional<RepoResponseDTO>> response = restTemplate.exchange(
-                    url, HttpMethod.GET, null,
-                    new ParameterizedTypeReference<>() {
-                    }
-            );
+            ResponseEntity<Optional<RepoResponseDTO>> response =
+                    restTemplate.exchange(urlRequest, HttpMethod.GET, null,
+                            new ParameterizedTypeReference<>() {
+                            }
+                    );
+
             Optional<RepoResponseDTO> optionalRepoResponseDto = response.getBody();
 
             if (optionalRepoResponseDto.isPresent()) {
@@ -64,24 +65,26 @@ public class GitHubService {
                                 optionalRepoResponseDto.get()));
             }
         } catch (HttpClientErrorException e) {
-            log.warn("Репозиторий '{}' не найден.", fullRepoNameDto);
+            log.warn(String.format("Репозиторий '%s' не найден", fullRepoName));
         }
+
         return Optional.empty();
     }
 
     /**
      * Метод выполняет выгрузку данных о коммитах по названию репозитория
      */
-    public List<CommitEntity> fetchAllCommits(FullRepoNameDTO fullRepoNameDto) {
+    public List<CommitEntity> fetchAllCommits(String fullRepoName) {
 
-        String url = "https://api.github.com/repos/" + fullRepoNameDto.getFullName() + "/commits";
+        String urlRequest = String.format("https://api.github.com/repos/%s/commits", fullRepoName);
 
         try {
-            ResponseEntity<List<CommitResponseDTO>> response = restTemplate.exchange(
-                    url, HttpMethod.GET, null,
-                    new ParameterizedTypeReference<>() {
-                    }
-            );
+            ResponseEntity<List<CommitResponseDTO>> response =
+                    restTemplate.exchange(urlRequest, HttpMethod.GET, null,
+                            new ParameterizedTypeReference<>() {
+                            }
+                    );
+
             List<CommitResponseDTO> commitResponseDTOList = response.getBody();
 
             if (!commitResponseDTOList.isEmpty()) {
@@ -90,18 +93,20 @@ public class GitHubService {
                         .collect(Collectors.toCollection(ArrayList::new));
             }
         } catch (HttpClientErrorException e) {
-            log.warn("Коммиты в репозитории '{}' не найдены.", fullRepoNameDto);
+            log.warn(String.format("Коммиты в репозитории '%s' не найдены", fullRepoName));
         }
+
         return List.of();
     }
 
     /**
      * Метод выполняет выгрузку данных о коммитах по названию репозитория
+     * после коммита 'commitHtmlUrl' из второго аргумента
      */
-    public List<CommitEntity> fetchCommitsLatestThan(FullRepoNameDTO fullRepoNameDto, String commitHtmlUrl) {
+    public List<CommitEntity> fetchCommitsLatestThan(String fullRepoName, String commitHtmlUrl) {
 
         String url = String.format("https://api.github.com/repos/%s/commits?sha=%s",
-                fullRepoNameDto, getShaFromUrl(commitHtmlUrl));
+                fullRepoName, getShaFromUrl(commitHtmlUrl));
 
         try {
             ResponseEntity<List<CommitResponseDTO>> response = restTemplate.exchange(
@@ -117,11 +122,15 @@ public class GitHubService {
                         .collect(Collectors.toCollection(ArrayList::new));
             }
         } catch (HttpClientErrorException e) {
-            log.warn("Коммиты в репозитории '{}' не найдены.", fullRepoNameDto);
+            log.warn("Коммиты в репозитории '{}' не найдены.", fullRepoName);
         }
+
         return List.of();
     }
 
+    /**
+     * Метод возвращает SHA из полного URL адреса
+     */
     private String getShaFromUrl(String url) {
         String[] parts = url.split("/");
         return parts[parts.length - 1];

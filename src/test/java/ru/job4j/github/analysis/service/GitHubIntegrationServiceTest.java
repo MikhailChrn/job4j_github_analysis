@@ -1,7 +1,6 @@
 package ru.job4j.github.analysis.service;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,7 +9,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestTemplate;
-import ru.job4j.github.analysis.dto.FullRepoNameDTO;
 import ru.job4j.github.analysis.entity.CommitEntity;
 import ru.job4j.github.analysis.entity.RepoEntity;
 import ru.job4j.github.analysis.repository.CommitRepository;
@@ -25,6 +23,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+
+/**
+ * MockRestServiceServer:
+ * - Используется для имитации удалённых HTTP-сервисов,
+ *      с которыми ты взаимодействуешь, например, через RestTemplate.
+ * - Помогает тестировать компоненты, которые отправляют HTTP-запросы наружу,
+ *      и получать предсказуемые ответы.
+ * - Не используется для тестирования контроллеров!
+ *      Это тестирование клиента, а не сервера.
+ * - Используется с @RestClientTest или вручную с RestTemplate.
+ */
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -59,8 +68,7 @@ class GitHubIntegrationServiceTest {
     public void whenFetchCommitsFromMockThenGetListOfCommitsEntity() throws IOException {
         String urlRepoRequest = "https://api.github.com/repos/MikhailChrn/job4j_social_media_api";
         String urlCommitsRequest = "https://api.github.com/repos/MikhailChrn/job4j_social_media_api/commits";
-        FullRepoNameDTO fullRepoNameDTO =
-                new FullRepoNameDTO("MikhailChrn/job4j_social_media_api");
+        String fullRepoName = "MikhailChrn/job4j_social_media_api";
 
         String jsonBodyResponseForRepo = fileService.readFileContent("jsonsample/reposample.json");
         String jsonBodyResponseForCommits = fileService.readFileContent("jsonsample/commitssample.json");
@@ -72,19 +80,18 @@ class GitHubIntegrationServiceTest {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess(jsonBodyResponseForCommits, MediaType.APPLICATION_JSON));
 
-        Optional<RepoEntity> optionalRepoEntity = gitHubService.fetchRepo(fullRepoNameDTO);
+        Optional<RepoEntity> optionalRepoEntity = gitHubService.fetchRepo(fullRepoName);
         assertTrue(optionalRepoEntity.isPresent());
         repoRepository.save(optionalRepoEntity.get());
 
-        List<CommitEntity> commitEntityList = gitHubService.fetchAllCommits(fullRepoNameDTO);
+        List<CommitEntity> commitEntityList = gitHubService.fetchAllCommits(fullRepoName);
         assertEquals(13, commitEntityList.size());
 
         commitEntityList.forEach(commitRepository::save);
 
-        repoService.findLastCommitByRepoFullName(fullRepoNameDTO.getFullName());
+        repoService.findLastCommitByRepoFullName(fullRepoName);
 
-        System.out.println("Крайний коммит : " + repoRepository.findAllByFullName(
-                fullRepoNameDTO.getFullName())
+        System.out.println("Крайний коммит : " + repoRepository.findAllByFullName(fullRepoName)
                 .stream().findFirst().get().getLastCommitUrl());
     }
 }

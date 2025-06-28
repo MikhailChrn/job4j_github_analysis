@@ -3,11 +3,11 @@ package ru.job4j.github.analysis.service;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.job4j.github.analysis.comparator.CommitDateComparator;
 import ru.job4j.github.analysis.dto.request.CommitRequestDTO;
-import ru.job4j.github.analysis.dto.FullRepoNameDTO;
 import ru.job4j.github.analysis.dto.request.RepoRequestDTO;
 import ru.job4j.github.analysis.entity.CommitEntity;
 import ru.job4j.github.analysis.entity.RepoEntity;
@@ -16,6 +16,7 @@ import ru.job4j.github.analysis.mapper.RepoMapper;
 import ru.job4j.github.analysis.repository.CommitRepository;
 import ru.job4j.github.analysis.repository.RepoRepository;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -48,33 +49,63 @@ public class RepoService {
      * Метод запрашивает из базы все сохранённые репозитории
      */
     public List<RepoRequestDTO> findAllrepositories() {
-        return repoRepository.findAll().stream()
+        List<RepoRequestDTO> request = repoRepository.findAll().stream()
                 .map(repoMapper::getRequestDtoFromEntity)
                 .collect(toCollection(ArrayList<RepoRequestDTO>::new));
+
+        log.info(String.format("Возвращены данные о '%d шт.' репозиториев. Время : %s.",
+                request.size(), LocalDateTime.now()));
+
+        return request;
     }
 
     /**
      * Метод запрашивает из базы все сохранённые коммиты по имени репозитория
      */
-    @Transactional
     public List<CommitRequestDTO> findAllCommitsByRepoFullName(String fullName) {
-        return commitRepository.findAllByRepoFullName(fullName).stream()
+        List<CommitRequestDTO> request = commitRepository.findAllByRepoFullName(fullName).stream()
                 .map(commitMapper::getRequestDtoFromEntity)
                 .collect(toCollection(ArrayList<CommitRequestDTO>::new));
+
+        log.info(String.format("Возвращены данные о '%d шт.' коммитах. Время : %s.",
+                request.size(), LocalDateTime.now()));
+
+        return request;
     }
 
     /**
-     * Метод добавляет в базу репозиторий по заголовку,
-     * для дальнейшего выполнения мониторинга коммитов из него
+     * Метод добавляет в базу репозиторий по заголовку для дальнейшего выполнения мониторинга
+     * (+ все имеющиеся к настоящему моменту коммиnы
+     *  + фиксирует данные о последнем имеющемся коммите)
+     *
+     *   0 -> репозиторий добавлен ранее
+     *  -1 -> репозиторий не найден на API GitHub.com
+     *  +1 -> репозиторий и все коммиты успешно сохранены в базе
      */
-    public void create(FullRepoNameDTO fullRepoNameDto) throws EntityNotFoundException {
-        Optional<RepoEntity> optionalRepoEntity = gitHubService.fetchRepo(fullRepoNameDto);
-        if (optionalRepoEntity.isEmpty()) {
-            throw new EntityNotFoundException(
-                    String.format("Данные о репозитории '%s' отсутствуют в базе",
-                            fullRepoNameDto.getFullName()));
+    @Async
+    @Transactional
+    public int create(String fullRepoName) throws EntityNotFoundException {
+        List<RepoEntity> repoList = repoRepository.findAllByFullName(fullRepoName);
+        if (!repoList.isEmpty()) {
+            return 0;
         }
+
+        Optional<RepoEntity> optionalRepoEntity = gitHubService.fetchRepo(fullRepoName);
+        if (optionalRepoEntity.isEmpty()) {
+            return -1;
+        }
+
         repoRepository.save(optionalRepoEntity.get());
+        log.info(String.format("Репозиторий %s добавлен базу данных", fullRepoName));
+
+        List<CommitEntity> commitEntityList = gitHubService.fetchAllCommits(fullRepoName);
+
+        commitEntityList.forEach(commitRepository::save);
+        log.info(String.format("'%d шт.' коммитов добавлено в базу. Время : %s",
+                commitEntityList.size(), LocalDateTime.now()));
+
+        findLastCommitByRepoFullName(fullRepoName);
+        return 1;
     }
 
     /**
@@ -83,10 +114,9 @@ public class RepoService {
      */
     @Transactional
     public Optional<CommitEntity> findLastCommitByRepoFullName(String fullName) {
-        Optional<RepoEntity> optionalRepoEntity = repoRepository.findAllByFullName(fullName)
-                .stream().findFirst();
+        List<RepoEntity> repoEntityList = repoRepository.findAllByFullName(fullName);
 
-        if (optionalRepoEntity.isEmpty()) {
+        if (repoEntityList.isEmpty()) {
             log.warn(String.format("Данные о репозитории '%s' отсутствуют в базе", fullName));
             throw new EntityNotFoundException(
                     String.format("Данные о репозитории '%s' отсутствуют в базе", fullName));
@@ -100,16 +130,14 @@ public class RepoService {
         }
 
         CommitEntity lastCommit = commitEntityList.stream()
-                .max(commitDateComparator::compare)
+                .max(commitDateComparator)
                 .get();
 
-        optionalRepoEntity.get().setLastCommitUrl(lastCommit.getHtmlUrl());
+        repoEntityList.stream().findFirst().get().setLastCommitUrl(lastCommit.getHtmlUrl());
 
-        log.info(String.format("'%s' коммит сохранён в базу как наиболее свежий в настоящий момент", lastCommit.getHtmlUrl()));
-
-        repoRepository.save(optionalRepoEntity.get());
+        repoRepository.save(repoEntityList.stream().findFirst().get());
+        log.info(String.format("'%s' коммит сохранён в базу как крайний", lastCommit.getHtmlUrl()));
 
         return Optional.of(lastCommit);
     }
-
 }
