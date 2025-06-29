@@ -33,6 +33,10 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
  * - Не используется для тестирования контроллеров!
  *      Это тестирование клиента, а не сервера.
  * - Используется с @RestClientTest или вручную с RestTemplate.
+ *
+ * ДЛЯ ТЕСТИРОВАНИЯ ИСПОЛЬЗУЮТСЯ ШАБЛОНЫ
+ * 'src/test/resources/jsonsample/reposample.json'
+ * 'src/test/resources/jsonsample/commitssample.json'
  */
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)

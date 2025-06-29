@@ -21,7 +21,7 @@ public class CommitEntity {
 
     @NotNull
     @URL
-    @Column(name = "html_url")
+    @Column(name = "html_url", unique = true)
     private String htmlUrl;
 
     @Column(name = "message")

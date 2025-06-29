@@ -12,8 +12,10 @@ import ru.job4j.github.analysis.repository.CommitRepository;
 import ru.job4j.github.analysis.repository.RepoRepository;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -21,10 +23,11 @@ import static org.mockito.Mockito.*;
 /**
  * Mockito метод verifyNoInteractions() - гарантирует, что тестируемый код не взаимодействует
  *      с mockObject нежелательным образом.
- *  Mockito метод verify(mockObject, times(n)).someMethod() проверяет, что метод someMethod() был вызван ровно n раз
  *
- *  Использование when().thenReturn() для последовательных возвращаемых значений:
- *  when(myMock.someMethod()).thenReturn(1, 2, 3); // Первый вызов вернет 1, второй - 2, третий - 3
+ * Mockito метод verify(mockObject, times(n)).someMethod() проверяет, что метод someMethod() был вызван ровно n раз
+ *
+ * Использование when().thenReturn() для последовательных возвращаемых значений:
+ *      when(myMock.someMethod()).thenReturn(1, 2, 3); // Первый вызов вернет 1, второй - 2, третий - 3
  */
 
 @ExtendWith(MockitoExtension.class)
@@ -37,6 +40,9 @@ class RepoServiceTest {
     private RepoRepository repoRepository;
 
     @Mock
+    private CommitService commitService;
+
+    @Mock
     private CommitRepository commitRepository;
 
     @Mock
@@ -46,33 +52,33 @@ class RepoServiceTest {
     private RepoService repoService;
 
     @Test
-    void whenCreateAndRepoAlreadyExistsThenReturns0() {
+    void whenCreateAndRepoAlreadyExistsThenReturns0() throws ExecutionException, InterruptedException {
         String fullName = "octocat/Hello-World";
 
         when(repoRepository.findAllByFullName(fullName))
                 .thenReturn(List.of(new RepoEntity()));
 
-        int result = repoService.create(fullName);
+        int result = repoService.create(fullName).get();
 
         assertEquals(0, result);
         verifyNoInteractions(gitHubService);
     }
 
     @Test
-    void whenCreateRepoNotExistsAndGitHubNotFoundThenReturnsMinus1() {
+    void whenCreateRepoNotExistsAndGitHubNotFoundThenReturnsMinus1() throws ExecutionException, InterruptedException {
         String fullName = "octocat/Hello-World";
 
         when(repoRepository.findAllByFullName(fullName)).thenReturn(List.of());
         when(gitHubService.fetchRepo(fullName)).thenReturn(Optional.empty());
 
-        int result = repoService.create(fullName);
+        int result = repoService.create(fullName).get();
 
         assertEquals(-1, result);
         verify(gitHubService).fetchRepo(fullName);
     }
 
     @Test
-    void whenCreateRepoSavedAndCommitsSavedThenReturns1() {
+    void whenCreateRepoSavedAndCommitsSavedThenReturns1() throws ExecutionException, InterruptedException {
         LocalDateTime now = LocalDateTime.now();
 
         String fullName = "octocat/Hello-World";
@@ -80,15 +86,17 @@ class RepoServiceTest {
         CommitEntity commit0 = CommitEntity.builder().htmlUrl("commit0").authorDate(now.minusDays(2)).build();
         CommitEntity commit1 = CommitEntity.builder().htmlUrl("commit1").authorDate(now.minusDays(1)).build();
 
-        when(repoRepository.findAllByFullName(fullName)).thenReturn(List.of(), List.of(repo));
-        when(commitRepository.findAllByRepoFullName(fullName)).thenReturn(List.of(commit1, commit0));
+        List<RepoEntity> repoEntityEmptyList = new ArrayList<>();
+
+        when(repoRepository.findAllByFullName(fullName)).thenReturn(repoEntityEmptyList, List.of(repo));
+        when(commitService.findAllByRepoFullName(fullName)).thenReturn(List.of(commit1, commit0));
         when(gitHubService.fetchRepo(fullName)).thenReturn(Optional.of(repo));
         when(gitHubService.fetchAllCommits(fullName))
                 .thenReturn(List.of(commit0, commit1));
         when(commitDateComparator.compare(any(CommitEntity.class), any(CommitEntity.class)))
-                .thenReturn(1);
+                .thenReturn(-1);
 
-        int result = repoService.create(fullName);
+        int result = repoService.create(fullName).get();
 
         assertEquals(1, result);
         verify(repoRepository, times(2)).save(repo);

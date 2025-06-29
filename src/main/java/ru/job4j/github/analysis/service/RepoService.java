@@ -20,12 +20,16 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import static java.util.stream.Collectors.toCollection;
 
 @Slf4j
 @Service
 public class RepoService {
+
+    @Autowired
+    private CommitService commitService;
 
     @Autowired
     private RepoRepository repoRepository;
@@ -63,7 +67,7 @@ public class RepoService {
      * Метод запрашивает из базы все сохранённые коммиты по имени репозитория
      */
     public List<CommitRequestDTO> findAllCommitsByRepoFullName(String fullName) {
-        List<CommitRequestDTO> request = commitRepository.findAllByRepoFullName(fullName).stream()
+        List<CommitRequestDTO> request = commitService.findAllByRepoFullName(fullName).stream()
                 .map(commitMapper::getRequestDtoFromEntity)
                 .collect(toCollection(ArrayList<CommitRequestDTO>::new));
 
@@ -75,24 +79,24 @@ public class RepoService {
 
     /**
      * Метод добавляет в базу репозиторий по заголовку для дальнейшего выполнения мониторинга
-     * (+ все имеющиеся к настоящему моменту коммиnы
-     *  + фиксирует данные о последнем имеющемся коммите)
+     * (+ все имеющиеся к настоящему моменту коммиты
+     * + фиксирует данные о последнем имеющемся коммите)
      *
-     *   0 -> репозиторий добавлен ранее
-     *  -1 -> репозиторий не найден на API GitHub.com
-     *  +1 -> репозиторий и все коммиты успешно сохранены в базе
+     * 0 -> репозиторий добавлен ранее
+     * -1 -> репозиторий не найден на API GitHub.com
+     * +1 -> репозиторий и все коммиты успешно сохранены в базе
      */
     @Async
     @Transactional
-    public int create(String fullRepoName) throws EntityNotFoundException {
+    public CompletableFuture<Integer> create(String fullRepoName) throws EntityNotFoundException {
         List<RepoEntity> repoList = repoRepository.findAllByFullName(fullRepoName);
         if (!repoList.isEmpty()) {
-            return 0;
+            return CompletableFuture.completedFuture(0);
         }
 
         Optional<RepoEntity> optionalRepoEntity = gitHubService.fetchRepo(fullRepoName);
         if (optionalRepoEntity.isEmpty()) {
-            return -1;
+            return CompletableFuture.completedFuture(-1);
         }
 
         repoRepository.save(optionalRepoEntity.get());
@@ -100,12 +104,10 @@ public class RepoService {
 
         List<CommitEntity> commitEntityList = gitHubService.fetchAllCommits(fullRepoName);
 
-        commitEntityList.forEach(commitRepository::save);
-        log.info(String.format("'%d шт.' коммитов добавлено в базу. Время : %s",
-                commitEntityList.size(), LocalDateTime.now()));
+        commitEntityList.forEach(commitService::save);
 
         findLastCommitByRepoFullName(fullRepoName);
-        return 1;
+        return CompletableFuture.completedFuture(1);
     }
 
     /**
@@ -122,11 +124,10 @@ public class RepoService {
                     String.format("Данные о репозитории '%s' отсутствуют в базе", fullName));
         }
 
-        List<CommitEntity> commitEntityList = commitRepository.findAllByRepoFullName(fullName);
+        List<CommitEntity> commitEntityList = commitService.findAllByRepoFullName(fullName);
         if (commitEntityList.isEmpty()) {
             log.warn(String.format("Данные о коммитах '%s' отсутствуют в базе", fullName));
-            throw new EntityNotFoundException(
-                    String.format("Данные о коммитах '%s' отсутствуют в базе", fullName));
+            return Optional.empty();
         }
 
         CommitEntity lastCommit = commitEntityList.stream()

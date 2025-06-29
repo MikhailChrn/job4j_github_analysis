@@ -15,8 +15,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -108,5 +107,34 @@ class CommitRepositoryTest {
         assertEquals(foundedCommits.size(), 2);
         assertTrue(foundedCommits
                 .containsAll(List.of(commit4, commit2)));
+    }
+
+    @Test
+    public void whenTryToSaveEqualHrmlUrlThenGetFalseChecking() {
+        LocalDateTime dateOfCreation = LocalDateTime.now(ZoneId.of("UTC"));
+
+        RepoEntity repo = RepoEntity.builder()
+                .htmlUrl("https://github.com/Test1/test_test1")
+                .fullName("Test1/test_test1").createdAt(dateOfCreation).build();
+        repoRepository.save(repo);
+
+        CommitEntity commit1 = CommitEntity.builder()
+                .htmlUrl("https://github.com/Test1/test_test1/commit/cb171")
+                .message("message1").authorName("Test1").authorDate(dateOfCreation.plusMonths(1))
+                .repo(repo).build();
+        CommitEntity commit2 = CommitEntity.builder()
+                .htmlUrl("https://github.com/Test1/test_test1/commit/cb272")
+                .message("message2").authorName("Test1").authorDate(dateOfCreation.plusMonths(2))
+                .repo(repo).build();
+        CommitEntity commit3 = CommitEntity.builder()
+                .htmlUrl("https://github.com/Test1/test_test1/commit/cb171")
+                .message("message4").authorName("Test1").authorDate(dateOfCreation.plusMonths(3))
+                .repo(repo).build();
+
+        assertFalse(commitRepository.existsByUniqueHtmlUrl(commit1.getHtmlUrl()));
+        commitRepository.save(commit1);
+        assertFalse(commitRepository.existsByUniqueHtmlUrl(commit2.getHtmlUrl()));
+        commitRepository.save(commit2);
+        assertTrue(commitRepository.existsByUniqueHtmlUrl(commit3.getHtmlUrl()));
     }
 }

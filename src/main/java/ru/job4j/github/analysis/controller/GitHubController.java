@@ -50,7 +50,7 @@ public class GitHubController {
      */
     @PostMapping("/repos")
     public ResponseEntity<String> create(@RequestBody FullRepoNameDTO fullRepoNameDTO) throws Exception {
-        int response = repoService.create(fullRepoNameDTO.getFullName());
+        int response = repoService.create(fullRepoNameDTO.getFullName()).get();
 
         if (response == 0) {
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(

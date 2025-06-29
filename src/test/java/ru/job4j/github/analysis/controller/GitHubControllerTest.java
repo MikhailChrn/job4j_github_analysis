@@ -22,6 +22,7 @@ import ru.job4j.github.analysis.dto.request.RepoRequestDTO;
 import ru.job4j.github.analysis.service.RepoService;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -30,7 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 
 /**
- *  MockMvc: *
+ *  MockMvc:
  *  -Используется для тестирования веб-контроллеров внутри Spring MVC.
  *  -Позволяет запускать HTTP-запросы к контроллерам внутри контекста Spring
  *          без поднятия настоящего веб-сервера (без Tomcat, Undertow и др.).
@@ -91,7 +92,7 @@ class GitHubControllerTest {
     void whenCreateMethodCallThanReturnsCreatedMessage() throws Exception {
         FullRepoNameDTO dto = new FullRepoNameDTO("owner/repo");
 
-        Mockito.when(repoService.create(dto.getFullName())).thenReturn(1);
+        Mockito.when(repoService.create(dto.getFullName())).thenReturn(CompletableFuture.completedFuture(1));
 
         mockMvc.perform(post("/api/repos")
                         .contentType(MediaType.APPLICATION_JSON)
