@@ -29,7 +29,4 @@ public class RepoEntity {
     @Column(name = "description")
     private String description;
 
-    @Column(name = "last_commit_url")
-    private String lastCommitUrl;
-
 }

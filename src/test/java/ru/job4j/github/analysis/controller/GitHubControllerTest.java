@@ -19,7 +19,9 @@ import org.springframework.http.MediaType;
 import ru.job4j.github.analysis.dto.FullRepoNameDTO;
 import ru.job4j.github.analysis.dto.request.CommitRequestDTO;
 import ru.job4j.github.analysis.dto.request.RepoRequestDTO;
+import ru.job4j.github.analysis.service.CommitService;
 import ru.job4j.github.analysis.service.RepoService;
+import ru.job4j.github.analysis.service.RepoServiceStatus;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -50,6 +52,9 @@ class GitHubControllerTest {
     @MockBean
     private RepoService repoService;
 
+    @MockBean
+    private CommitService commitService;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
@@ -58,7 +63,7 @@ class GitHubControllerTest {
                 RepoRequestDTO.builder().fullName("repo0").build(),
                 RepoRequestDTO.builder().fullName("repo1").build());
 
-        Mockito.when(repoService.findAllrepositories()).thenReturn(response);
+        Mockito.when(repoService.findAllRepo()).thenReturn(response);
 
         mockMvc.perform(get("/api/repos"))
                 .andExpect(status().isOk())
@@ -76,7 +81,7 @@ class GitHubControllerTest {
 
         FullRepoNameDTO dto = new FullRepoNameDTO("owner/repo");
 
-        Mockito.when(repoService.findAllCommitsByRepoFullName(dto.getFullName()))
+        Mockito.when(commitService.findAllByRepoFullName(dto.getFullName()))
                 .thenReturn(commits);
 
         mockMvc.perform(get("/api/commits")
@@ -92,7 +97,10 @@ class GitHubControllerTest {
     void whenCreateMethodCallThanReturnsCreatedMessage() throws Exception {
         FullRepoNameDTO dto = new FullRepoNameDTO("owner/repo");
 
-        Mockito.when(repoService.create(dto.getFullName())).thenReturn(CompletableFuture.completedFuture(1));
+        Mockito.when(repoService.create(dto.getFullName()))
+                .thenReturn(CompletableFuture.completedFuture(
+                        RepoServiceStatus.SUCCESSFULLY_SAVED
+                ));
 
         mockMvc.perform(post("/api/repos")
                         .contentType(MediaType.APPLICATION_JSON)

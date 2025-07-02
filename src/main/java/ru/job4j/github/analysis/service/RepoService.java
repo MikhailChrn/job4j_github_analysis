@@ -7,7 +7,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.job4j.github.analysis.comparator.CommitDateComparator;
-import ru.job4j.github.analysis.dto.request.CommitRequestDTO;
 import ru.job4j.github.analysis.dto.request.RepoRequestDTO;
 import ru.job4j.github.analysis.entity.CommitEntity;
 import ru.job4j.github.analysis.entity.RepoEntity;
@@ -52,7 +51,7 @@ public class RepoService {
     /**
      * Метод запрашивает из базы все сохранённые репозитории
      */
-    public List<RepoRequestDTO> findAllrepositories() {
+    public List<RepoRequestDTO> findAllRepo() {
         List<RepoRequestDTO> request = repoRepository.findAll().stream()
                 .map(repoMapper::getRequestDtoFromEntity)
                 .collect(toCollection(ArrayList<RepoRequestDTO>::new));
@@ -64,81 +63,29 @@ public class RepoService {
     }
 
     /**
-     * Метод запрашивает из базы все сохранённые коммиты по имени репозитория
-     */
-    public List<CommitRequestDTO> findAllCommitsByRepoFullName(String fullName) {
-        List<CommitRequestDTO> request = commitService.findAllByRepoFullName(fullName).stream()
-                .map(commitMapper::getRequestDtoFromEntity)
-                .collect(toCollection(ArrayList<CommitRequestDTO>::new));
-
-        log.info(String.format("Возвращены данные о '%d шт.' коммитах. Время : %s.",
-                request.size(), LocalDateTime.now()));
-
-        return request;
-    }
-
-    /**
      * Метод добавляет в базу репозиторий по заголовку для дальнейшего выполнения мониторинга
-     * (+ все имеющиеся к настоящему моменту коммиты
-     * + фиксирует данные о последнем имеющемся коммите)
-     *
-     * 0 -> репозиторий добавлен ранее
-     * -1 -> репозиторий не найден на API GitHub.com
-     * +1 -> репозиторий и все коммиты успешно сохранены в базе
+     * (+ все имеющиеся к настоящему моменту коммиты)
      */
     @Async
     @Transactional
-    public CompletableFuture<Integer> create(String fullRepoName) throws EntityNotFoundException {
+    public CompletableFuture<RepoServiceStatus> create(String fullRepoName) throws EntityNotFoundException {
         List<RepoEntity> repoList = repoRepository.findAllByFullName(fullRepoName);
         if (!repoList.isEmpty()) {
-            return CompletableFuture.completedFuture(0);
+            return CompletableFuture.completedFuture(RepoServiceStatus.IS_ADD_EARLIER);
         }
 
         Optional<RepoEntity> optionalRepoEntity = gitHubService.fetchRepo(fullRepoName);
         if (optionalRepoEntity.isEmpty()) {
-            return CompletableFuture.completedFuture(-1);
+            return CompletableFuture.completedFuture(RepoServiceStatus.IST_FOUND_ON_EXTERNAL);
         }
 
         repoRepository.save(optionalRepoEntity.get());
-        log.info(String.format("Репозиторий %s добавлен базу данных", fullRepoName));
+        log.info(String.format("Репозиторий '%s' успешно добавлен базу данных", fullRepoName));
 
         List<CommitEntity> commitEntityList = gitHubService.fetchAllCommits(fullRepoName);
 
         commitEntityList.forEach(commitService::save);
 
-        findLastCommitByRepoFullName(fullRepoName);
-        return CompletableFuture.completedFuture(1);
-    }
-
-    /**
-     * Метод находит html_url крайнего коммита
-     * и обновляет о нём данные в соответствующем поле repoEntity
-     */
-    @Transactional
-    public Optional<CommitEntity> findLastCommitByRepoFullName(String fullName) {
-        List<RepoEntity> repoEntityList = repoRepository.findAllByFullName(fullName);
-
-        if (repoEntityList.isEmpty()) {
-            log.warn(String.format("Данные о репозитории '%s' отсутствуют в базе", fullName));
-            throw new EntityNotFoundException(
-                    String.format("Данные о репозитории '%s' отсутствуют в базе", fullName));
-        }
-
-        List<CommitEntity> commitEntityList = commitService.findAllByRepoFullName(fullName);
-        if (commitEntityList.isEmpty()) {
-            log.warn(String.format("Данные о коммитах '%s' отсутствуют в базе", fullName));
-            return Optional.empty();
-        }
-
-        CommitEntity lastCommit = commitEntityList.stream()
-                .max(commitDateComparator)
-                .get();
-
-        repoEntityList.stream().findFirst().get().setLastCommitUrl(lastCommit.getHtmlUrl());
-
-        repoRepository.save(repoEntityList.stream().findFirst().get());
-        log.info(String.format("'%s' коммит сохранён в базу как крайний", lastCommit.getHtmlUrl()));
-
-        return Optional.of(lastCommit);
+        return CompletableFuture.completedFuture(RepoServiceStatus.SUCCESSFULLY_SAVED);
     }
 }

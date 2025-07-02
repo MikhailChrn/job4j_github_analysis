@@ -15,6 +15,7 @@ import ru.job4j.github.analysis.entity.RepoEntity;
 
 import ru.job4j.github.analysis.mapper.CommitMapper;
 import ru.job4j.github.analysis.mapper.RepoMapper;
+import ru.job4j.github.analysis.repository.CommitRepository;
 import ru.job4j.github.analysis.repository.RepoRepository;
 
 import java.util.ArrayList;
@@ -30,6 +31,9 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 public class GitHubService {
+
+    @Autowired
+    private CommitRepository commitRepository;
 
     @Autowired
     private RepoRepository repoRepository;
@@ -100,39 +104,24 @@ public class GitHubService {
     }
 
     /**
-     * Метод выполняет выгрузку данных о коммитах по названию репозитория
-     * после коммита 'commitHtmlUrl' из второго аргумента
+     * Метод выполняет выгрузку данных о коммитах по названию репозитория,
+     * сравнивает с тем что уже есть в базе и возвращеет разницу
      */
-    public List<CommitEntity> fetchCommitsLatestThan(String fullRepoName, String commitHtmlUrl) {
-
-        String url = String.format("https://api.github.com/repos/%s/commits?sha=%s",
-                fullRepoName, getShaFromUrl(commitHtmlUrl));
-
-        try {
-            ResponseEntity<List<CommitResponseDTO>> response = restTemplate.exchange(
-                    url, HttpMethod.GET, null,
-                    new ParameterizedTypeReference<>() {
-                    }
-            );
-            List<CommitResponseDTO> commitResponseDTOList = response.getBody();
-
-            if (!commitResponseDTOList.isEmpty()) {
-                return commitResponseDTOList.stream()
-                        .map(commitMapper::getEntityFromResponseDto)
-                        .collect(Collectors.toCollection(ArrayList::new));
-            }
-        } catch (HttpClientErrorException e) {
-            log.warn("Коммиты в репозитории '{}' не найдены.", fullRepoName);
+    public List<CommitEntity> getRecentCommits(String fullRepoName) {
+        Optional<RepoEntity> optionalRepoEntity =
+                repoRepository.findAllByFullName(fullRepoName).stream().findFirst();
+        if (optionalRepoEntity.isEmpty()) {
+            return List.of();
         }
 
-        return List.of();
-    }
+        List<CommitEntity> allCommitsByRepoExternal = fetchAllCommits(fullRepoName);
+        List<CommitEntity> allCommitsByRepoInternal =
+                commitRepository.findAllByRepoFullName(fullRepoName);
 
-    /**
-     * Метод возвращает SHA из полного URL адреса
-     */
-    private String getShaFromUrl(String url) {
-        String[] parts = url.split("/");
-        return parts[parts.length - 1];
+        List<CommitEntity> recentCommits = allCommitsByRepoExternal.stream()
+                .filter(commit -> !allCommitsByRepoInternal.contains(commit))
+                .toList();
+
+        return recentCommits;
     }
 }

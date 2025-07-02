@@ -21,6 +21,9 @@ import java.util.List;
 public class ScheduledTasks {
 
     @Autowired
+    private CommitService commitService;
+
+    @Autowired
     private RepoService repoService;
 
     @Autowired
@@ -49,21 +52,9 @@ public class ScheduledTasks {
         log.info(String.format("Мониторинг для '%d шт.' репозиториев. Время запуска : %s. Поток : %s",
                 allRepoList.size(), LocalDateTime.now(), Thread.currentThread().getName()));
 
-        allRepoList.forEach(repo -> {
-            if (repo.getLastCommitUrl().isEmpty()) {
-                gitHubService.fetchAllCommits(repo.getFullName()).forEach(commitRepository::save);
-                repoService.findLastCommitByRepoFullName(repo.getFullName());
-
-            } else {
-                List<CommitEntity> commitEntityList =
-                        gitHubService.fetchCommitsLatestThan(repo.getFullName(), repo.getLastCommitUrl());
-
-                if (commitEntityList.size() > 1) {
-                    commitEntityList.forEach(commitRepository::save);
-                    repoService.findLastCommitByRepoFullName(repo.getFullName());
-                }
-            }
-        });
+        allRepoList.forEach(repo ->
+                    commitService.getRecentCommits(repo.getFullName()).forEach(commitService::save)
+        );
 
         log.info(String.format("Завершён мониторинг для '%d шт.' репозиториев. Время окончания : %s.",
                 allRepoList.size(), LocalDateTime.now(), Thread.currentThread().getName()));

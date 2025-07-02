@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@EqualsAndHashCode(of = {"html_url"})
+@EqualsAndHashCode(of = {"htmlUrl"})
 @Table (name = "commits")
 public class CommitEntity {
     @Id

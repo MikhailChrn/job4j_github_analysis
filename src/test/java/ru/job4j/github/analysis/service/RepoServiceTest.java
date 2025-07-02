@@ -52,33 +52,33 @@ class RepoServiceTest {
     private RepoService repoService;
 
     @Test
-    void whenCreateAndRepoAlreadyExistsThenReturns0() throws ExecutionException, InterruptedException {
+    void whenCreateAndRepoAlreadyExistsThenReturnsAddEarlier() throws ExecutionException, InterruptedException {
         String fullName = "octocat/Hello-World";
 
         when(repoRepository.findAllByFullName(fullName))
                 .thenReturn(List.of(new RepoEntity()));
 
-        int result = repoService.create(fullName).get();
+        RepoServiceStatus status = repoService.create(fullName).get();
 
-        assertEquals(0, result);
+        assertEquals(RepoServiceStatus.IS_ADD_EARLIER, status);
         verifyNoInteractions(gitHubService);
     }
 
     @Test
-    void whenCreateRepoNotExistsAndGitHubNotFoundThenReturnsMinus1() throws ExecutionException, InterruptedException {
+    void whenCreateRepoNotExistsAndGitHubNotFoundThenReturnsIstFoundOnExternal() throws ExecutionException, InterruptedException {
         String fullName = "octocat/Hello-World";
 
         when(repoRepository.findAllByFullName(fullName)).thenReturn(List.of());
         when(gitHubService.fetchRepo(fullName)).thenReturn(Optional.empty());
 
-        int result = repoService.create(fullName).get();
+        RepoServiceStatus status = repoService.create(fullName).get();
 
-        assertEquals(-1, result);
+        assertEquals(RepoServiceStatus.IST_FOUND_ON_EXTERNAL, status);
         verify(gitHubService).fetchRepo(fullName);
     }
 
     @Test
-    void whenCreateRepoSavedAndCommitsSavedThenReturns1() throws ExecutionException, InterruptedException {
+    void whenCreateRepoSavedAndCommitsSavedThenReturnsSuccess() throws ExecutionException, InterruptedException {
         LocalDateTime now = LocalDateTime.now();
 
         String fullName = "octocat/Hello-World";
@@ -89,17 +89,14 @@ class RepoServiceTest {
         List<RepoEntity> repoEntityEmptyList = new ArrayList<>();
 
         when(repoRepository.findAllByFullName(fullName)).thenReturn(repoEntityEmptyList, List.of(repo));
-        when(commitService.findAllByRepoFullName(fullName)).thenReturn(List.of(commit1, commit0));
         when(gitHubService.fetchRepo(fullName)).thenReturn(Optional.of(repo));
         when(gitHubService.fetchAllCommits(fullName))
                 .thenReturn(List.of(commit0, commit1));
-        when(commitDateComparator.compare(any(CommitEntity.class), any(CommitEntity.class)))
-                .thenReturn(-1);
 
-        int result = repoService.create(fullName).get();
+        RepoServiceStatus status = repoService.create(fullName).get();
 
-        assertEquals(1, result);
-        verify(repoRepository, times(2)).save(repo);
+        assertEquals(RepoServiceStatus.SUCCESSFULLY_SAVED, status);
+        verify(repoRepository).save(repo);
     }
 
 }
