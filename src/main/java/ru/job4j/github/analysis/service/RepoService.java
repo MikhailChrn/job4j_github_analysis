@@ -64,28 +64,23 @@ public class RepoService {
 
     /**
      * Метод добавляет в базу репозиторий по заголовку для дальнейшего выполнения мониторинга
-     * (+ все имеющиеся к настоящему моменту коммиты)
      */
-    @Async
     @Transactional
-    public CompletableFuture<RepoServiceStatus> create(String fullRepoName) throws EntityNotFoundException {
+    public RepoServiceStatus create(String fullRepoName) {
         List<RepoEntity> repoList = repoRepository.findAllByFullName(fullRepoName);
         if (!repoList.isEmpty()) {
-            return CompletableFuture.completedFuture(RepoServiceStatus.IS_ADD_EARLIER);
+            return RepoServiceStatus.IS_ADD_EARLIER;
         }
 
         Optional<RepoEntity> optionalRepoEntity = gitHubService.fetchRepo(fullRepoName);
         if (optionalRepoEntity.isEmpty()) {
-            return CompletableFuture.completedFuture(RepoServiceStatus.IST_FOUND_ON_EXTERNAL);
+            return RepoServiceStatus.IST_FOUND_ON_EXTERNAL;
         }
 
+        optionalRepoEntity.get().setNew(true);
         repoRepository.save(optionalRepoEntity.get());
         log.info(String.format("Репозиторий '%s' успешно добавлен базу данных", fullRepoName));
 
-        List<CommitEntity> commitEntityList = gitHubService.fetchAllCommits(fullRepoName);
-
-        commitEntityList.forEach(commitService::save);
-
-        return CompletableFuture.completedFuture(RepoServiceStatus.SUCCESSFULLY_SAVED);
+        return RepoServiceStatus.SUCCESSFULLY_SAVED;
     }
 }

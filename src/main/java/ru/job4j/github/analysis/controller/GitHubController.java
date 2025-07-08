@@ -52,16 +52,10 @@ public class GitHubController {
 
     /**
      * POST сохраняет репозиторий в БД для последующего сбора данных о коммитах
-     *
-     * расшифровка status
-     * 0 -> репозиторий добавлен ранее
-     * -1 -> репозиторий не найден на API GitHub.com
-     * +1 -> репозиторий и все коммиты успешно сохранены в базе
-     * (можно создать Enum для статуса)
      */
     @PostMapping("/repos")
-    public ResponseEntity<String> create(@RequestBody FullRepoNameDTO fullRepoNameDTO) throws Exception {
-        RepoServiceStatus status = repoService.create(fullRepoNameDTO.getFullName()).get();
+    public ResponseEntity<String> create(@RequestBody FullRepoNameDTO fullRepoNameDTO) {
+        RepoServiceStatus status = repoService.create(fullRepoNameDTO.getFullName());
 
         if (status.equals(RepoServiceStatus.IS_ADD_EARLIER)) {
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(

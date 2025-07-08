@@ -1,0 +1,2 @@
+ALTER TABLE repos
+ADD COLUMN is_new BOOLEAN;

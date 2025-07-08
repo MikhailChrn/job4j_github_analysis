@@ -7,5 +7,6 @@
 
     <include file="scripts/001_ddl_create_table_repos.sql" relativeToChangelogFile="true"/>
     <include file="scripts/002_ddl_create_table_commits.sql" relativeToChangelogFile="true"/>
+    <include file="scripts/003_ddl_alter_table_repos.sql" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

@@ -29,4 +29,7 @@ public class RepoEntity {
     @Column(name = "description")
     private String description;
 
+    @Column(name = "is_new")
+    private boolean isNew;
+
 }

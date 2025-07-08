@@ -98,9 +98,7 @@ class GitHubControllerTest {
         FullRepoNameDTO dto = new FullRepoNameDTO("owner/repo");
 
         Mockito.when(repoService.create(dto.getFullName()))
-                .thenReturn(CompletableFuture.completedFuture(
-                        RepoServiceStatus.SUCCESSFULLY_SAVED
-                ));
+                .thenReturn(RepoServiceStatus.SUCCESSFULLY_SAVED);
 
         mockMvc.perform(post("/api/repos")
                         .contentType(MediaType.APPLICATION_JSON)
